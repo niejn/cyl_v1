@@ -4,6 +4,7 @@ import math
 import io
 import re
 import xlsxwriter
+from src.db.db_get import get_orders
 
 class MyException(Exception):
     def __init__(self,message):
@@ -99,29 +100,32 @@ def get_data_from_ctp(file_path = './20180302-88998016TBT_English.txt'):
                         'O/C':'Open/Close',	'Fee':'Commission',	'Total  P/L':'P/L1',
                         'Premium Received/Paid':'P/L2',}
     # Transaction_index = temp_index[3]
-    Transaction_index = header_index_dict['Transaction Record']
-    Transaction_end_index = header_end_index_dict['Transaction Record']
+    if 'Transaction Record' in header_index_dict:
+        Transaction_index = header_index_dict['Transaction Record']
+        Transaction_end_index = header_end_index_dict['Transaction Record']
     # Position_Closed_index = temp_index[4]
-    transaction_df = df[Transaction_index+1: Transaction_end_index]
+        transaction_df = df[Transaction_index+1: Transaction_end_index]
     # print(transaction_df)
-    f_transaction_df = normalize_df(client_id=client_id, pos_dict=transaction_dict, temp_df= transaction_df)
+        f_transaction_df = normalize_df(client_id=client_id, pos_dict=transaction_dict, temp_df= transaction_df)
     # f_transaction_df[['Lots', 'Value','Commission',]] = f_transaction_df[['Lots', 'Value','Commission',]].astype(float)
     # f_transaction_df.at[df.index[-1], 'Lots'] = f_transaction_df['Lots'].sum()
     # image_name_data['id'] = image_name_data['id'].map('{:.0f}'.format)
-    new_row = ["" for i in range(len(f_transaction_df.columns))]
-    pd.Series(new_row, index=f_transaction_df.columns)
+        new_row = ["" for i in range(len(f_transaction_df.columns))]
+        pd.Series(new_row, index=f_transaction_df.columns)
     # f_transaction_df = f_transaction_df.append(pd.Series(new_row, index=f_transaction_df.columns), ignore_index=True)
-    f_transaction_df[['Lots', 'Value', 'Commission', ]] = f_transaction_df[['Lots', 'Value', 'Commission', ]].astype(
-        float)
-    f_transaction_df = f_transaction_df.append(f_transaction_df.sum(numeric_only=True), ignore_index=True)
-    f_transaction_df.at[f_transaction_df.index[-1], 'Date'] = 'Sum_'
+        f_transaction_df[['Lots', 'Value', 'Commission', ]] = \
+            f_transaction_df[['Lots', 'Value', 'Commission', ]].astype(float)
+        f_transaction_df = f_transaction_df.append(f_transaction_df.sum(numeric_only=True), ignore_index=True)
+        f_transaction_df.at[f_transaction_df.index[-1], 'Date'] = 'Sum_'
     # f_transaction_df.at[5, 'Lots'] = f_transaction_df['Lots'].sum()
     # f_transaction_df.at[5, 'Value'] = f_transaction_df['Value'].sum()
     # f_transaction_df.at[5, 'Commission'] = f_transaction_df['Commission'].sum()
     # new_row.at[5, 'Lots'] = f_transaction_df['Lots'].sum()
     # new_row.at[5, 'Value'] = f_transaction_df['Value'].sum()
     # new_row.at[5, 'Commission'] = f_transaction_df['Commission'].sum()
-    print(f_transaction_df)
+        print(f_transaction_df)
+    else:
+        f_transaction_df = None
     '''
      str =line.split()
             phanzi=re.compile(u'[\u4e00-\u9fa5]+');
@@ -129,48 +133,34 @@ def get_data_from_ctp(file_path = './20180302-88998016TBT_English.txt'):
             res = phanzi.findall(line)
             nums = re.findall(r'([a-zA-Z]*\d+)', line)
             '''
-    pos_index = temp_index[-1]
-    positions_df = df[pos_index+1:]
-    positions_df = positions_df.reset_index(drop=True)
-    print(positions_df)
-    temp_index = positions_df.index[positions_df[0].str.contains('---')].tolist()
-    positions_df = positions_df.drop(positions_df[positions_df[0].str.contains('---')].index)
-    print(positions_df)
-    f_pos_df = positions_df[0].str[1:-1].str.split('|', expand=True).applymap(lambda x: x.strip())
-    f_pos_df = f_pos_df.reset_index(drop=True)
-    print(f_pos_df)
-    f_pos_df.columns = f_pos_df.iloc[0]
-    f_pos_df = f_pos_df.reindex(f_pos_df.index.drop(0))
-    print(f_pos_df)
-    # df.at[x, c] = 1
-    # test = positions_df[0].str.split('|')
-    # positions_df = pd.DataFrame(test.tolist())
-    # positions_df = positions_df.applymap(lambda x: x.strip())
-    # # df = df.drop(df[df.score < 50].index)
-    # # temp_index = df.index[df[0].str.contains('Settlement Statement', case=False)].tolist()
-    # print(positions_df)
-    # df.drop([0, 1])
+    if 'Positions' in header_index_dict:
+        pos_index = temp_index[-1]
+        positions_df = df[pos_index + 1:]
+        positions_df = positions_df.reset_index(drop=True)
+        print(positions_df)
+        temp_index = positions_df.index[positions_df[0].str.contains('---')].tolist()
+        positions_df = positions_df.drop(positions_df[positions_df[0].str.contains('---')].index)
+        print(positions_df)
+        f_pos_df = positions_df[0].str[1:-1].str.split('|', expand=True).applymap(lambda x: x.strip())
+        f_pos_df = f_pos_df.reset_index(drop=True)
+        print(f_pos_df)
+        f_pos_df.columns = f_pos_df.iloc[0]
+        f_pos_df = f_pos_df.reindex(f_pos_df.index.drop(0))
+        print(f_pos_df)
 
-    pos_dict = {'Instrument': 'Contract', 'Long Pos.': 'LongPosit', 'Avg Buy Price': 'BidPrice',
-           'Short Pos.': 'ShortPosit', 'Avg Sell Price': 'AskPrice',
-           'Prev. Sttl': 'Previous_SP', 'Sttl Today': 'Settlement_price',
-           'Accum. P/L': 'Position_P/L', 'Margin Occupied': 'Margin', 'S/H': 'H/S',
-           }
-    names_list = list(pos_dict.keys())
-    f_pos_df = f_pos_df[names_list]
-    print(f_pos_df)
-    f_pos_df.rename(columns=pos_dict,inplace=True)
-    print(f_pos_df)
-    f_pos_df = f_pos_df[:-1]
-    f_pos_df.loc[:, 'AccountCode'] = client_id
-    # f_pos_df['AccountCode'] = client_id
-    # names_list = ['Instrument',	'Long Pos.',	'Avg Buy Price',	'Short Pos.',
-    #             'Avg Sell Price',	'Prev. Sttl',	'Sttl Today',	'Accum. P/L',
-    #             'Margin Occupied',	'S/H',]
-    # Create a Pandas Excel writer using XlsxWriter as the engine
-    # xlsx_dir = './output/{client_id}_{date}'.format(client_id=client_id, date=report_date)
-    # if not os.path.exists(xlsx_dir):
-    #     os.makedirs(xlsx_dir)
+        pos_dict = {'Instrument': 'Contract', 'Long Pos.': 'LongPosit', 'Avg Buy Price': 'BidPrice',
+               'Short Pos.': 'ShortPosit', 'Avg Sell Price': 'AskPrice',
+               'Prev. Sttl': 'Previous_SP', 'Sttl Today': 'Settlement_price',
+               'Accum. P/L': 'Position_P/L', 'Margin Occupied': 'Margin', 'S/H': 'H/S',
+               }
+        names_list = list(pos_dict.keys())
+        f_pos_df = f_pos_df[names_list]
+        print(f_pos_df)
+        f_pos_df.rename(columns=pos_dict,inplace=True)
+        print(f_pos_df)
+        f_pos_df = f_pos_df[:-1]
+        f_pos_df.loc[:, 'AccountCode'] = client_id
+
     excel_file_name = './DailyStatement_{client_id}_{date}.xlsx'.format(client_id=client_id, date=report_date)
     writer = pd.ExcelWriter(excel_file_name, engine='xlsxwriter')
     cols_seq = ['Contract',	'LongPosit',	'BidPrice',	'ShortPosit',	'AskPrice',
@@ -179,24 +169,26 @@ def get_data_from_ctp(file_path = './20180302-88998016TBT_English.txt'):
     cols_seq_order = ['Date',	'Exchange',	'Contract',	'Serial_No.',	'Buy/Sell',	'H/S',
                       'Trade_Price',	'Lots',	'Value',	'Open/Close',	'Commission',	'P/L1',
                       'P/L2',	'AccountCode',
-]
+    ]
     # Convert the dataframe to an XlsxWriter Excel object.
-    f_transaction_df.to_excel(writer, sheet_name='Orders',
-                      startrow=1, startcol=0,
-                      # header=False,
-                      columns=cols_seq_order,
-                      index=False
-                      )
-    f_pos_df.to_excel(writer, sheet_name='Position',
-                      startrow=1, startcol=0,
-                      # header=False,
-                      columns=cols_seq,
-                      index=False
-                      )
+    if f_transaction_df is not None:
+        f_transaction_df.to_excel(writer, sheet_name='Orders',
+                          startrow=1, startcol=0,
+                          # header=False,
+                          columns=cols_seq_order,
+                          index=False
+                          )
+    if f_pos_df is not None:
+        f_pos_df.to_excel(writer, sheet_name='Position',
+                          startrow=1, startcol=0,
+                          # header=False,
+                          columns=cols_seq,
+                          index=False
+                          )
 
     # Close the Pandas Excel writer and output the Excel file.
     workbook = writer.book
-    worksheet = writer.sheets['Position']
+
     # Add a header format.
     header_format = workbook.add_format({
         'bold': True,
@@ -207,13 +199,23 @@ def get_data_from_ctp(file_path = './20180302-88998016TBT_English.txt'):
     header_format.set_align('vcenter')
     header_format.set_border(1)
     header_format.set_font_size(12)
-    worksheet.write(0, 0, "Positions_P/L Details", header_format)
-    worksheet_order = writer.sheets['Orders']
-    worksheet_order.write(0, 0, "Order Details", header_format)
+    if 'Position' in writer.sheets:
+        worksheet = writer.sheets['Position']
+        worksheet.write(0, 0, "Positions_P/L Details", header_format)
+    if 'Orders' in writer.sheets:
+        worksheet_order = writer.sheets['Orders']
+        worksheet_order.write(0, 0, "Order Details", header_format)
 
     writer.save()
     # DailyStatement_99801601_20170808
-    return
+    from src.db.db_insert import insert_direct
+    if f_transaction_df is not None:
+        print(f_transaction_df)
+        f_transaction_df = f_transaction_df[f_transaction_df['Date'] != 'Sum_']
+        print(f_transaction_df)
+        data_list = f_transaction_df.to_dict(orient='records')
+        insert_direct(data_list, tablename='orders')
+    return client_id, report_date
 
 def test():
     # 统计  Lots， Value，Commission列，其他列不统计，第一列填入Sum_, 其他列并填入N/A
@@ -362,12 +364,23 @@ def test():
 
     writer.save()
     # DailyStatement_99801601_20170808
+
+    from src.db.db_insert import insert_direct
+    insert_direct(f_transaction_df, tablename='orders')
+    return
+
+def gen_history_orders():
+
     return
 
 def main():
     files = readall("./txt")
     for afile in files:
-        get_data_from_ctp(afile)
+        client_id, report_date = get_data_from_ctp(afile)
+        get_orders(connection_str="sqlite:///src/db/orders.sqlite", client_id=client_id, date=report_date)
+    #   sqlite:///src/db/orders.sqlite
+    # get_orders(connection_str="sqlite:///src/db/orders.sqlite", )
+
     return
 if __name__ == '__main__':
     main()
